@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AssessmentType {
+  MIDTERM
+  CONTINUOUS
+  SUBSTITUTE
+  OTHER
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  username     String
+  createdAt    DateTime   @default(now()) @map("created_at")
+  semesters    Semester[]
+  @@map("users")
+}
+
+model Semester {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  name        String
+  isCurrent   Boolean    @default(false) @map("is_current")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses     Course[]
+  @@map("semesters")
+}
+
+model Course {
+  id          String       @id @default(uuid())
+  semesterId  String       @map("semester_id")
+  name        String
+  isArchived  Boolean      @default(false) @map("is_archived")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  semester    Semester     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  assessments Assessment[]
+  @@map("courses")
+}
+
+model Assessment {
+  id               String         @id @default(uuid())
+  courseId         String         @map("course_id")
+  name             String
+  type             AssessmentType
+  weightPercentage Decimal?       @map("weight_percentage")
+  grade            Decimal        @default(0)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@map("assessments")
+}
