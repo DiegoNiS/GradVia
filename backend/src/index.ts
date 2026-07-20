@@ -3,6 +3,7 @@ import prisma from './db';
 import userRoutes from './routes/user.routes';
 import courseRoutes from './routes/course.routes';
 import semesterRoutes from './routes/semester.routes';
+import assessmentRoutes from './routes/assessment.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/semesters', semesterRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/assessments', assessmentRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', message: 'Backend is running correctly.' });
