@@ -40,4 +40,22 @@ COURSE_RES=$(curl -s -X POST http://localhost:3000/api/courses \
 echo "Respuesta del Curso (Formateada):"
 echo $COURSE_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 
+echo -e "\n4. Obteniendo Semestres del Usuario (isCurrent rule check)..."
+curl -s -X GET http://localhost:3000/api/semesters/user/$USER_ID | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+echo -e "\n5. Obteniendo Cursos del Semestre (Eager Loading Assessments)..."
+COURSES_RES=$(curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID)
+echo $COURSES_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+ASSESSMENT_ID=$(echo $COURSES_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8'))[0]?.assessments[0]?.id")
+
+if [ "$ASSESSMENT_ID" != "undefined" ] && [ -n "$ASSESSMENT_ID" ]; then
+  echo -e "\n6. Modificando Nota de la Primera Evaluación ($ASSESSMENT_ID)..."
+  curl -s -X PATCH http://localhost:3000/api/assessments/$ASSESSMENT_ID \
+  -H "Content-Type: application/json" \
+  -d '{"grade": 15, "weightPercentage": 20}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+else
+  echo -e "\nError: No se encontró ninguna evaluación para modificar."
+fi
+
 echo -e "\n--- Pruebas Finalizadas ---"
