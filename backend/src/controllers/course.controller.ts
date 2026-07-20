@@ -35,3 +35,20 @@ export const createCourse = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getCoursesBySemester = async (req: Request, res: Response) => {
+  try {
+    const { semesterId } = req.params;
+    const courses = await prisma.course.findMany({
+      where: { semesterId },
+      include: {
+        assessments: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    res.status(200).json(courses);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
