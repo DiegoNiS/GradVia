@@ -56,6 +56,27 @@ export interface Assessment {
   grade: number;                  // Decimal (0 a 20)
   createdAt: string;
 }
+
+// Estructura para Carga/Importación Masiva (Bulk Sync)
+export interface BulkSyncAssessmentInput {
+  name: string;
+  type: AssessmentType;
+  grade?: number;
+  weightPercentage?: number | null;
+}
+
+export interface BulkSyncCourseInput {
+  name: string;
+  isArchived?: boolean;
+  assessments?: BulkSyncAssessmentInput[];
+}
+
+export interface BulkSyncSemesterPayload {
+  userId: string;
+  semesterName: string;
+  isCurrent?: boolean;
+  courses: BulkSyncCourseInput[];
+}
 ```
 
 ---
@@ -66,7 +87,9 @@ export interface Assessment {
    - Al llamar a `POST /api/courses`, el backend crea **automáticamente 6 evaluaciones por defecto** para ese curso (3 `MIDTERM`: "Parcial 1", "Parcial 2", "Parcial 3" y 3 `CONTINUOUS`: "Continua 1", "Continua 2", "Continua 3").
 2. **Regla del Semestre Activo (`isCurrent`):**
    - Solo puede haber **un solo semestre** con `isCurrent: true` por usuario. Si se crea o edita un semestre enviando `isCurrent: true`, el backend desmarcará automáticamente los semestres anteriores.
-3. **Escala de Calificaciones y Pesos:**
+3. **Carga/Sincronización Masiva (Upsert):**
+   - El endpoint `POST /api/semesters/bulk-sync` permite importar un semestre completo con sus cursos y evaluaciones. **Si el semestre, curso o evaluación ya existe, lo actualiza (Upsert); si no existe, lo crea.**
+4. **Escala de Calificaciones y Pesos:**
    - La nota (`grade`) es un número de **0 a 20** (por defecto `0`).
    - El peso (`weightPercentage`) es un número porcentual opcional de **0 a 100**.
 
@@ -145,17 +168,50 @@ export interface Assessment {
   ```
 - **Respuesta (201 Created):** Objeto `Semester`.
 
-#### 2. Listar Semestres de un Usuario
+#### 2. Carga / Sincronización Masiva de Semestre (Bulk Sync - Import)
+- **Ruta:** `POST /api/semesters/bulk-sync`
+- **Autenticación:** Requerida (`Bearer <TOKEN>`)
+- **Body:**
+  ```json
+  {
+    "userId": "uuid-del-usuario",
+    "semesterName": "Semestre 2026-I",
+    "isCurrent": true,
+    "courses": [
+      {
+        "name": "Matemáticas Discretas",
+        "isArchived": false,
+        "assessments": [
+          {
+            "name": "Parcial 1",
+            "type": "MIDTERM",
+            "grade": 17.5,
+            "weightPercentage": 25
+          },
+          {
+            "name": "Continua 1",
+            "type": "CONTINUOUS",
+            "grade": 14,
+            "weightPercentage": 15
+          }
+        ]
+      }
+    ]
+  }
+  ```
+- **Respuesta (200 OK):** Objeto `Semester` completo sincronizado conteniendo sus `courses` y `assessments`.
+
+#### 3. Listar Semestres de un Usuario
 - **Ruta:** `GET /api/semesters/user/:userId`
 - **Autenticación:** Requerida (`Bearer <TOKEN>`)
 - **Respuesta (200 OK):** Lista de `Semester[]` ordenada descendentemente por fecha.
 
-#### 3. Obtener Semestre por ID
+#### 4. Obtener Semestre por ID
 - **Ruta:** `GET /api/semesters/:id`
 - **Autenticación:** Requerida (`Bearer <TOKEN>`)
 - **Respuesta (200 OK):** Objeto `Semester` incluyendo su árbol de `courses` y `assessments`.
 
-#### 4. Editar Semestre
+#### 5. Editar Semestre
 - **Ruta:** `PATCH /api/semesters/:id`
 - **Autenticación:** Requerida (`Bearer <TOKEN>`)
 - **Body (campos opcionales):**
@@ -167,7 +223,7 @@ export interface Assessment {
   ```
 - **Respuesta (200 OK):** Objeto `Semester` actualizado.
 
-#### 5. Eliminar Semestre
+#### 6. Eliminar Semestre
 - **Ruta:** `DELETE /api/semesters/:id`
 - **Autenticación:** Requerida (`Bearer <TOKEN>`)
 - **Respuesta (200 OK):** `{"message": "Semester deleted successfully"}` *(Elimina sus cursos y notas en cascada)*.
