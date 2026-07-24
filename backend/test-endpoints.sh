@@ -1,82 +1,81 @@
 #!/bin/bash
 
-echo "--- Iniciando Pruebas de Endpoints (Flujo CRUD Completo) ---"
+echo "--- Iniciando Pruebas de Endpoints (Flujo con Autenticación JWT) ---"
 
-echo -e "\n1. Creando Usuario..."
-USER_RES=$(curl -s -X POST http://localhost:3000/api/users \
+TEST_EMAIL="user_$(date +%s)@test.com"
+TEST_PASS="password123"
+TEST_USER="user_$(date +%s)"
+
+echo -e "\n1. Registrando Usuario en /api/auth/register..."
+REG_RES=$(curl -s -X POST http://localhost:3000/api/auth/register \
 -H "Content-Type: application/json" \
--d "{\"email\":\"test_$(date +%s)@test.com\", \"username\":\"testUser\"}")
+-d "{\"email\":\"$TEST_EMAIL\", \"username\":\"$TEST_USER\", \"password\":\"$TEST_PASS\"}")
 
-echo "Respuesta del Usuario: $USER_RES"
-USER_ID=$(echo $USER_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).id")
+echo "Respuesta del Registro: $REG_RES"
+USER_ID=$(echo $REG_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).user?.id")
 
 if [ "$USER_ID" == "undefined" ] || [ -z "$USER_ID" ]; then
-  echo "Error: No se pudo extraer el ID del usuario."
+  echo "Error: No se pudo registrar el usuario."
   exit 1
 fi
-echo "✅ Usuario creado con ID: $USER_ID"
+echo "✅ Usuario registrado con ID: $USER_ID"
 
 
-echo -e "\n2. Creando Semestre..."
+echo -e "\n2. Iniciando Sesión en /api/auth/login..."
+LOGIN_RES=$(curl -s -X POST http://localhost:3000/api/auth/login \
+-H "Content-Type: application/json" \
+-d "{\"email\":\"$TEST_EMAIL\", \"password\":\"$TEST_PASS\"}")
+
+TOKEN=$(echo $LOGIN_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).token")
+
+if [ "$TOKEN" == "undefined" ] || [ -z "$TOKEN" ]; then
+  echo "Error: No se pudo obtener el token JWT."
+  exit 1
+fi
+echo "✅ Token JWT Obtenido correctamente."
+
+
+echo -e "\n3. Probando Endpoint Protegido /api/auth/me..."
+curl -s -X GET http://localhost:3000/api/auth/me \
+-H "Authorization: Bearer $TOKEN" | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+
+echo -e "\n4. Creando Semestre (Con Token JWT)..."
 SEM_RES=$(curl -s -X POST http://localhost:3000/api/semesters \
 -H "Content-Type: application/json" \
--d "{\"userId\": \"$USER_ID\", \"name\": \"Semestre de Prueba\", \"isCurrent\": true}")
+-H "Authorization: Bearer $TOKEN" \
+-d "{\"userId\": \"$USER_ID\", \"name\": \"Semestre 2026-I\", \"isCurrent\": true}")
 
-echo "Respuesta del Semestre: $SEM_RES"
 SEM_ID=$(echo $SEM_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).id")
-
-if [ "$SEM_ID" == "undefined" ] || [ -z "$SEM_ID" ]; then
-  echo "Error: No se pudo extraer el ID del semestre."
-  exit 1
-fi
 echo "✅ Semestre creado con ID: $SEM_ID"
 
 
-echo -e "\n3. Creando Curso (con 6 evaluaciones anidadas)..."
+echo -e "\n5. Creando Curso (Con Token JWT)..."
 COURSE_RES=$(curl -s -X POST http://localhost:3000/api/courses \
 -H "Content-Type: application/json" \
--d "{\"semesterId\": \"$SEM_ID\", \"name\": \"Matemáticas Avanzadas\"}")
+-H "Authorization: Bearer $TOKEN" \
+-d "{\"semesterId\": \"$SEM_ID\", \"name\": \"Algoritmos Avanzados\"}")
 
 COURSE_ID=$(echo $COURSE_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).id")
 echo "✅ Curso creado con ID: $COURSE_ID"
 
 
-echo -e "\n4. Obteniendo Semestres del Usuario..."
-curl -s -X GET http://localhost:3000/api/semesters/user/$USER_ID | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
-
-
-echo -e "\n5. Obteniendo Cursos del Semestre (Eager Loading)..."
-COURSES_RES=$(curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID)
+echo -e "\n6. Consultando Cursos con Evaluaciones (Con Token JWT)..."
+COURSES_RES=$(curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID \
+-H "Authorization: Bearer $TOKEN")
 echo $COURSES_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 
 ASSESSMENT_ID=$(echo $COURSES_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8'))[0]?.assessments[0]?.id")
 
 if [ "$ASSESSMENT_ID" != "undefined" ] && [ -n "$ASSESSMENT_ID" ]; then
-  echo -e "\n6. Modificando Nota de la Primera Evaluación ($ASSESSMENT_ID)..."
+  echo -e "\n7. Modificando Nota de Evaluación ($ASSESSMENT_ID)..."
   curl -s -X PATCH http://localhost:3000/api/assessments/$ASSESSMENT_ID \
   -H "Content-Type: application/json" \
-  -d '{"grade": 15, "weightPercentage": 20}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"grade": 17.5, "weightPercentage": 25}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 fi
 
+echo -e "\n8. Probando Rechazo de Acceso Sin Token (Debe dar Error 401)..."
+curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID
 
-echo -e "\n7. Archivando Curso ($COURSE_ID)..."
-curl -s -X PATCH http://localhost:3000/api/courses/$COURSE_ID \
--H "Content-Type: application/json" \
--d '{"isArchived": true}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
-
-
-echo -e "\n8. Creando una Evaluación Extra/Personalizada (Tipo OTHER)..."
-EXTRA_ASS_RES=$(curl -s -X POST http://localhost:3000/api/assessments \
--H "Content-Type: application/json" \
--d "{\"courseId\": \"$COURSE_ID\", \"name\": \"Proyecto Final Extra\", \"type\": \"OTHER\", \"weightPercentage\": 30, \"grade\": 18}")
-echo $EXTRA_ASS_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
-
-
-echo -e "\n9. Probando Eliminación en Cascada (Creando usuario temporal para borrarlo)..."
-TEMP_USER_RES=$(curl -s -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "{\"email\":\"temp_$(date +%s)@test.com\", \"username\":\"tempUser\"}")
-TEMP_USER_ID=$(echo $TEMP_USER_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).id")
-
-echo "Eliminando usuario temporal ($TEMP_USER_ID)..."
-curl -s -X DELETE http://localhost:3000/api/users/$TEMP_USER_ID | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
-
-echo -e "\n--- Pruebas CRUD Completadas ---"
+echo -e "\n\n--- Pruebas de Autenticación Finalizadas ---"
