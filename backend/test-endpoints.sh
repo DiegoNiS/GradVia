@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "--- Iniciando Pruebas de Endpoints (Flujo Completo) ---"
+echo "--- Iniciando Pruebas de Endpoints (Flujo CRUD Completo) ---"
 
 echo -e "\n1. Creando Usuario..."
 USER_RES=$(curl -s -X POST http://localhost:3000/api/users \
@@ -32,18 +32,20 @@ fi
 echo "✅ Semestre creado con ID: $SEM_ID"
 
 
-echo -e "\n3. Creando Curso (Debería crear las 6 evaluaciones anidadas)..."
+echo -e "\n3. Creando Curso (con 6 evaluaciones anidadas)..."
 COURSE_RES=$(curl -s -X POST http://localhost:3000/api/courses \
 -H "Content-Type: application/json" \
 -d "{\"semesterId\": \"$SEM_ID\", \"name\": \"Matemáticas Avanzadas\"}")
 
-echo "Respuesta del Curso (Formateada):"
-echo $COURSE_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+COURSE_ID=$(echo $COURSE_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).id")
+echo "✅ Curso creado con ID: $COURSE_ID"
 
-echo -e "\n4. Obteniendo Semestres del Usuario (isCurrent rule check)..."
+
+echo -e "\n4. Obteniendo Semestres del Usuario..."
 curl -s -X GET http://localhost:3000/api/semesters/user/$USER_ID | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 
-echo -e "\n5. Obteniendo Cursos del Semestre (Eager Loading Assessments)..."
+
+echo -e "\n5. Obteniendo Cursos del Semestre (Eager Loading)..."
 COURSES_RES=$(curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID)
 echo $COURSES_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 
@@ -54,8 +56,27 @@ if [ "$ASSESSMENT_ID" != "undefined" ] && [ -n "$ASSESSMENT_ID" ]; then
   curl -s -X PATCH http://localhost:3000/api/assessments/$ASSESSMENT_ID \
   -H "Content-Type: application/json" \
   -d '{"grade": 15, "weightPercentage": 20}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
-else
-  echo -e "\nError: No se encontró ninguna evaluación para modificar."
 fi
 
-echo -e "\n--- Pruebas Finalizadas ---"
+
+echo -e "\n7. Archivando Curso ($COURSE_ID)..."
+curl -s -X PATCH http://localhost:3000/api/courses/$COURSE_ID \
+-H "Content-Type: application/json" \
+-d '{"isArchived": true}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+
+echo -e "\n8. Creando una Evaluación Extra/Personalizada (Tipo OTHER)..."
+EXTRA_ASS_RES=$(curl -s -X POST http://localhost:3000/api/assessments \
+-H "Content-Type: application/json" \
+-d "{\"courseId\": \"$COURSE_ID\", \"name\": \"Proyecto Final Extra\", \"type\": \"OTHER\", \"weightPercentage\": 30, \"grade\": 18}")
+echo $EXTRA_ASS_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+
+echo -e "\n9. Probando Eliminación en Cascada (Creando usuario temporal para borrarlo)..."
+TEMP_USER_RES=$(curl -s -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d "{\"email\":\"temp_$(date +%s)@test.com\", \"username\":\"tempUser\"}")
+TEMP_USER_ID=$(echo $TEMP_USER_RES | node -pe "JSON.parse(require('fs').readFileSync(0, 'utf-8')).id")
+
+echo "Eliminando usuario temporal ($TEMP_USER_ID)..."
+curl -s -X DELETE http://localhost:3000/api/users/$TEMP_USER_ID | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+echo -e "\n--- Pruebas CRUD Completadas ---"
