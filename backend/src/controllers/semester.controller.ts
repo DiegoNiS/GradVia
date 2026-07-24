@@ -111,3 +111,102 @@ export const deleteSemester = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const bulkSyncSemester = async (req: Request, res: Response) => {
+  try {
+    const { userId, semesterName, isCurrent, courses } = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+      if (isCurrent) {
+        await tx.semester.updateMany({
+          where: { userId },
+          data: { isCurrent: false },
+        });
+      }
+
+      let semester = await tx.semester.findFirst({
+        where: { userId, name: semesterName },
+      });
+
+      if (semester) {
+        semester = await tx.semester.update({
+          where: { id: semester.id },
+          data: { isCurrent: isCurrent || false },
+        });
+      } else {
+        semester = await tx.semester.create({
+          data: {
+            userId,
+            name: semesterName,
+            isCurrent: isCurrent || false,
+          },
+        });
+      }
+
+      for (const courseItem of courses) {
+        let course = await tx.course.findFirst({
+          where: { semesterId: semester.id, name: courseItem.name },
+        });
+
+        if (course) {
+          course = await tx.course.update({
+            where: { id: course.id },
+            data: { isArchived: courseItem.isArchived ?? course.isArchived },
+          });
+        } else {
+          course = await tx.course.create({
+            data: {
+              semesterId: semester.id,
+              name: courseItem.name,
+              isArchived: courseItem.isArchived ?? false,
+            },
+          });
+        }
+
+        if (courseItem.assessments && courseItem.assessments.length > 0) {
+          for (const assItem of courseItem.assessments) {
+            let assessment = await tx.assessment.findFirst({
+              where: { courseId: course.id, name: assItem.name },
+            });
+
+            if (assessment) {
+              await tx.assessment.update({
+                where: { id: assessment.id },
+                data: {
+                  grade: assItem.grade !== undefined ? assItem.grade : assessment.grade,
+                  weightPercentage: assItem.weightPercentage !== undefined ? assItem.weightPercentage : assessment.weightPercentage,
+                  type: assItem.type || assessment.type,
+                },
+              });
+            } else {
+              await tx.assessment.create({
+                data: {
+                  courseId: course.id,
+                  name: assItem.name,
+                  type: assItem.type,
+                  grade: assItem.grade ?? 0,
+                  weightPercentage: assItem.weightPercentage ?? null,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      return await tx.semester.findUnique({
+        where: { id: semester.id },
+        include: {
+          courses: {
+            include: {
+              assessments: true,
+            },
+          },
+        },
+      });
+    });
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};

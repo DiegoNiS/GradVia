@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "--- Iniciando Pruebas de Endpoints (Flujo con Autenticación JWT) ---"
+echo "--- Iniciando Pruebas de Endpoints (Flujo con Autenticación JWT y Bulk Sync) ---"
 
 # Verificar si el servidor está corriendo
 if ! curl -s http://localhost:3000/api/health > /dev/null; then
@@ -47,7 +47,7 @@ curl -s -X GET http://localhost:3000/api/auth/me \
 -H "Authorization: Bearer $TOKEN" | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 
 
-echo -e "\n4. Creando Semestre (Con Token JWT)..."
+echo -e "\n4. Creando Semestre Individual (Con Token JWT)..."
 SEM_RES=$(curl -s -X POST http://localhost:3000/api/semesters \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer $TOKEN" \
@@ -57,7 +57,31 @@ SEM_ID=$(echo $SEM_RES | node -pe "try { JSON.parse(require('fs').readFileSync(0
 echo "✅ Semestre creado con ID: $SEM_ID"
 
 
-echo -e "\n5. Creando Curso (Con Token JWT)..."
+echo -e "\n5. Probando Carga Masiva (Bulk Sync - Importación de Semestre)..."
+BULK_RES=$(curl -s -X POST http://localhost:3000/api/semesters/bulk-sync \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $TOKEN" \
+-d "{
+  \"userId\": \"$USER_ID\",
+  \"semesterName\": \"Semestre Importado Bulk 2026-II\",
+  \"isCurrent\": true,
+  \"courses\": [
+    {
+      \"name\": \"Física Cuántica\",
+      \"isArchived\": false,
+      \"assessments\": [
+        { \"name\": \"Examen Parcial\", \"type\": \"MIDTERM\", \"grade\": 18, \"weightPercentage\": 30 },
+        { \"name\": \"Laboratorio 1\", \"type\": \"CONTINUOUS\", \"grade\": 16, \"weightPercentage\": 20 }
+      ]
+    }
+  ]
+}")
+
+echo "Respuesta de Carga Masiva (Bulk Sync):"
+echo $BULK_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
+
+
+echo -e "\n6. Creando Curso Individual (Con Token JWT)..."
 COURSE_RES=$(curl -s -X POST http://localhost:3000/api/courses \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer $TOKEN" \
@@ -67,7 +91,7 @@ COURSE_ID=$(echo $COURSE_RES | node -pe "try { JSON.parse(require('fs').readFile
 echo "✅ Curso creado con ID: $COURSE_ID"
 
 
-echo -e "\n6. Consultando Cursos con Evaluaciones (Con Token JWT)..."
+echo -e "\n7. Consultando Cursos con Evaluaciones (Con Token JWT)..."
 COURSES_RES=$(curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID \
 -H "Authorization: Bearer $TOKEN")
 echo $COURSES_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
@@ -75,14 +99,14 @@ echo $COURSES_RES | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSy
 ASSESSMENT_ID=$(echo $COURSES_RES | node -pe "try { JSON.parse(require('fs').readFileSync(0, 'utf-8'))[0]?.assessments[0]?.id } catch(e) { '' }")
 
 if [ "$ASSESSMENT_ID" != "undefined" ] && [ -n "$ASSESSMENT_ID" ]; then
-  echo -e "\n7. Modificando Nota de Evaluación ($ASSESSMENT_ID)..."
+  echo -e "\n8. Modificando Nota de Evaluación ($ASSESSMENT_ID)..."
   curl -s -X PATCH http://localhost:3000/api/assessments/$ASSESSMENT_ID \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"grade": 17.5, "weightPercentage": 25}' | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0, 'utf-8')), null, 2)"
 fi
 
-echo -e "\n8. Probando Rechazo de Acceso Sin Token (Debe dar Error 401)..."
+echo -e "\n9. Probando Rechazo de Acceso Sin Token (Debe dar Error 401)..."
 curl -s -X GET http://localhost:3000/api/courses/semester/$SEM_ID
 
-echo -e "\n\n--- Pruebas de Autenticación Finalizadas ---"
+echo -e "\n\n--- Pruebas de Autenticación y Bulk Sync Finalizadas ---"

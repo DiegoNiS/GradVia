@@ -5,13 +5,19 @@ import {
   getSemesterById,
   updateSemester,
   deleteSemester,
+  bulkSyncSemester,
 } from '../controllers/semester.controller';
 import { validateBody } from '../middleware/validate.middleware';
-import { createSemesterSchema, updateSemesterSchema } from '../schemas/semester.schema';
+import {
+  createSemesterSchema,
+  updateSemesterSchema,
+  bulkSyncSemesterSchema,
+} from '../schemas/semester.schema';
 
 const router = Router();
 
 router.post('/', validateBody(createSemesterSchema), createSemester);
+router.post('/bulk-sync', validateBody(bulkSyncSemesterSchema), bulkSyncSemester);
 router.get('/user/:userId', getSemestersByUser);
 router.get('/:id', getSemesterById);
 router.patch('/:id', validateBody(updateSemesterSchema), updateSemester);
