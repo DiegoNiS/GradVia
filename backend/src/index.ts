@@ -1,4 +1,6 @@
 import express, { Request, Response } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import prisma from './db';
 import userRoutes from './routes/user.routes';
 import courseRoutes from './routes/course.routes';
@@ -6,10 +8,13 @@ import semesterRoutes from './routes/semester.routes';
 import assessmentRoutes from './routes/assessment.routes';
 import authRoutes from './routes/auth.routes';
 import { authenticateToken } from './middleware/auth.middleware';
+import { errorHandler } from './middleware/error.middleware';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(helmet());
+app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -30,6 +35,9 @@ app.get('/api/db-check', async (req: Request, res: Response) => {
     res.status(500).json({ status: 'error', message: 'Database connection failed.', error: error.message });
   }
 });
+
+// Manejador global de errores
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
