@@ -4,16 +4,19 @@ import userRoutes from './routes/user.routes';
 import courseRoutes from './routes/course.routes';
 import semesterRoutes from './routes/semester.routes';
 import assessmentRoutes from './routes/assessment.routes';
+import authRoutes from './routes/auth.routes';
+import { authenticateToken } from './middleware/auth.middleware';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/semesters', semesterRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/assessments', assessmentRoutes);
+app.use('/api/semesters', authenticateToken as any, semesterRoutes);
+app.use('/api/courses', authenticateToken as any, courseRoutes);
+app.use('/api/assessments', authenticateToken as any, assessmentRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', message: 'Backend is running correctly.' });
