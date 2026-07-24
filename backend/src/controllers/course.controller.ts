@@ -52,3 +52,61 @@ export const getCoursesBySemester = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getCourseById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const course = await prisma.course.findUnique({
+      where: { id },
+      include: {
+        assessments: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    res.status(200).json(course);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateCourse = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, isArchived } = req.body;
+
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (isArchived !== undefined) data.isArchived = isArchived;
+
+    const course = await prisma.course.update({
+      where: { id },
+      data,
+      include: {
+        assessments: true,
+      },
+    });
+
+    res.status(200).json(course);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteCourse = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.course.delete({
+      where: { id },
+    });
+
+    res.status(200).json({ message: 'Course deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
