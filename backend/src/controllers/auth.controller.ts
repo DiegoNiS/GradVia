@@ -51,17 +51,67 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'Email y contraseña son requeridos' });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // 1. Verificar si la cuenta está bloqueada temporalmente por lockoutUntil
+    if (user.lockoutUntil && new Date() < user.lockoutUntil) {
+      const remainingMs = user.lockoutUntil.getTime() - Date.now();
+      const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+      return res.status(403).json({
+        error: `Cuenta bloqueada temporalmente por superar el límite de 5 intentos fallidos. Intenta nuevamente en aproximadamente ${remainingHours} hora(s).`,
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    // 2. Si la contraseña es INCORRECTA
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      const newAttempts = user.failedAttempts + 1;
+      let lockoutUntil: Date | null = user.lockoutUntil;
+
+      if (newAttempts >= 5) {
+        // Bloqueo hasta las 00:00 (medianoche) del día siguiente
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        lockoutUntil = tomorrow;
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedAttempts: newAttempts,
+          lockoutUntil,
+        },
+      });
+
+      if (newAttempts >= 5) {
+        return res.status(403).json({
+          error: 'Has alcanzado los 5 intentos fallidos. Tu cuenta estará bloqueada hasta las 00:00 del día de mañana.',
+        });
+      }
+
+      const attemptsLeft = 5 - newAttempts;
+      return res.status(401).json({
+        error: `Credenciales inválidas. Te quedan ${attemptsLeft} intento(s) antes del bloqueo.`,
+      });
+    }
+
+    // 3. Si la contraseña es CORRECTA -> Resetear contador de fallos y desbloquear
+    if (user.failedAttempts > 0 || user.lockoutUntil !== null) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedAttempts: 0,
+          lockoutUntil: null,
+        },
+      });
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
