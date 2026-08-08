@@ -3,12 +3,14 @@ import type { Semester } from '../../types';
 
 export interface SemesterItemProps {
   semester: Semester;
+  index: number;
   isSelected: boolean;
   onSelect: (semester: Semester) => void;
 }
 
 export const SemesterItem: React.FC<SemesterItemProps> = ({
   semester,
+  index,
   isSelected,
   onSelect,
 }) => {
@@ -24,7 +26,7 @@ export const SemesterItem: React.FC<SemesterItemProps> = ({
     >
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-medium text-sm text-zinc-100">{semester.name}</h3>
+          <h3 className="font-medium text-sm text-zinc-100">Semestre {semester.number || index + 1}</h3>
           <p className="text-xs text-zinc-400 mt-1 font-mono">Promedio: {semester.gpa || 0}</p>
         </div>
         {semester.isCurrent && (

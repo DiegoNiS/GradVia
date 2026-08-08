@@ -43,10 +43,11 @@ export const SemestersPanel: React.FC<SemestersPanelProps> = ({
             Aún no tienes semestres. Crea uno o impórtalo desde la configuración.
           </div>
         ) : (
-          semesters.map((sem) => (
+          semesters.map((sem, index) => (
             <SemesterItem
               key={sem.id}
               semester={sem}
+              index={index}
               isSelected={selectedSemester?.id === sem.id}
               onSelect={onSelectSemester}
             />

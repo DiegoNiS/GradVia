@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSemestersByUserId, createSemester, createCourse, bulkSyncSemester } from '../services/api';
+import { getSemestersByUserId, getSemesterById, createSemester, createCourse, bulkSyncSemester } from '../services/api';
 import type { Semester, Course, BulkSyncCourseInput } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { parseApiError, type ParsedApiError } from '../utils/apiError';
@@ -31,25 +31,35 @@ export const DashboardView: React.FC = () => {
 
   // Import states
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importSemesterName, setImportSemesterName] = useState('');
   const [parsedCourses, setParsedCourses] = useState<BulkSyncCourseInput[]>([]);
+
+  const fetchSemesterDetails = async (semesterId: string) => {
+    try {
+      const detailed = await getSemesterById(semesterId);
+      setSelectedSemester(detailed);
+    } catch (err: any) {
+      setGlobalError(parseApiError(err));
+    }
+  };
 
   const fetchSemesters = async () => {
     if (!user) return;
     setLoading(true);
     setGlobalError(null);
     try {
+      // 1. Carga ligera de la lista de semestres del usuario
       const data = await getSemestersByUserId(user.id);
       setSemesters(data);
 
       if (data.length > 0) {
-        if (selectedSemester) {
-          const updatedSelected = data.find((s) => s.id === selectedSemester.id);
-          setSelectedSemester(updatedSelected || data[0]);
-        } else {
-          const current = data.find((s) => s.isCurrent) || data[0];
-          setSelectedSemester(current);
-        }
+        // 2. Cargar detalle especifico del semestre seleccionado o actual
+        const targetId = selectedSemester
+          ? (data.find((s) => s.id === selectedSemester.id)?.id || data[0].id)
+          : (data.find((s) => s.isCurrent)?.id || data[0].id);
+
+        await fetchSemesterDetails(targetId);
+      } else {
+        setSelectedSemester(null);
       }
     } catch (err: any) {
       setGlobalError(parseApiError(err));
@@ -62,11 +72,11 @@ export const DashboardView: React.FC = () => {
     fetchSemesters();
   }, [user]);
 
-  const handleCreateSemester = async (name: string) => {
+  const handleCreateSemester = async () => {
     if (!user) return;
     setModalError(null);
     try {
-      await createSemester({ userId: user.id, name, isCurrent: semesters.length === 0 });
+      await createSemester({ userId: user.id, isCurrent: semesters.length === 0 });
       setShowSemesterModal(false);
       await fetchSemesters();
     } catch (err: any) {
@@ -108,10 +118,9 @@ export const DashboardView: React.FC = () => {
         if (!line) continue;
 
         const parts = line.split(',');
-        if (parts.length >= 5) {
+        if (parts.length >= 4) {
           const courseName = parts[0].trim();
-          const evalName = parts[1].trim();
-          const evalType = parts[2].trim() as any;
+          const evalType = (parts[2]?.trim() as any) || 'CONTINUOUS';
           const grade = parseFloat(parts[3]);
           const weight = parseFloat(parts[4]);
 
@@ -120,7 +129,6 @@ export const DashboardView: React.FC = () => {
           }
 
           coursesMap.get(courseName)?.assessments?.push({
-            name: evalName,
             type: evalType,
             grade: isNaN(grade) ? 0 : grade,
             weightPercentage: isNaN(weight) ? 0 : weight,
@@ -129,8 +137,6 @@ export const DashboardView: React.FC = () => {
       }
 
       setParsedCourses(Array.from(coursesMap.values()));
-      const defaultName = file.name.replace('.csv', '').replace('notas_', '').replace('_', '-');
-      setImportSemesterName(`Semestre ${defaultName}`);
       setModalError(null);
       setShowImportModal(true);
 
@@ -142,13 +148,12 @@ export const DashboardView: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleImportConfirm = async (semesterName: string) => {
+  const handleImportConfirm = async () => {
     if (!user || parsedCourses.length === 0) return;
     setModalError(null);
     try {
       await bulkSyncSemester({
         userId: user.id,
-        semesterName,
         isCurrent: semesters.length === 0,
         courses: parsedCourses,
       });
@@ -199,7 +204,6 @@ export const DashboardView: React.FC = () => {
         </span>
         
         <div id="user-actions" className="flex items-center gap-2">
-          {/* Ruedita de Configuración Discreta */}
           <Button
             id="btn-settings"
             variant="ghost-icon"
@@ -225,12 +229,12 @@ export const DashboardView: React.FC = () => {
         </div>
       )}
 
-      {/* Paneles de Estructura Principales (Lado a lado en pantallas grandes) */}
+      {/* Paneles de Estructura Principales */}
       <div id="dashboard-main-panels" className="w-full flex flex-col xl:flex-row gap-6 items-stretch">
         <SemestersPanel
           semesters={semesters}
           selectedSemester={selectedSemester}
-          onSelectSemester={(sem) => setSelectedSemester(sem)}
+          onSelectSemester={(sem) => fetchSemesterDetails(sem.id)}
           onOpenCreateModal={() => {
             setModalError(null);
             setShowSemesterModal(true);
@@ -267,7 +271,6 @@ export const DashboardView: React.FC = () => {
 
       <ImportCsvModal
         isOpen={showImportModal}
-        defaultSemesterName={importSemesterName}
         courseCount={parsedCourses.length}
         onClose={() => setShowImportModal(false)}
         onSubmit={handleImportConfirm}

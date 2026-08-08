@@ -10,6 +10,7 @@ export interface CourseDetailsPanelProps {
   showSubstitute: boolean;
   onToggleSubstitute: () => void;
   onUpdateGrade: (assessmentId: string, newGradeStr: string) => void;
+  onUpdateWeight: (assessmentId: string, newWeightStr: string) => void;
   courseAverage: number;
 }
 
@@ -19,9 +20,11 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
   showSubstitute,
   onToggleSubstitute,
   onUpdateGrade,
+  onUpdateWeight,
   courseAverage,
 }) => {
   const substituteExam = assessments.find((a) => a.type === 'SUBSTITUTE');
+  // Se muestran las evaluaciones en el orden directo en el que las retorna la API (por fecha de creación)
   const regularAssessments = assessments.filter((a) => a.type !== 'SUBSTITUTE');
 
   return (
@@ -29,8 +32,6 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
       <div id="details-header" className="pb-4 border-b border-zinc-800">
         <h2 className="text-lg font-medium leading-tight text-zinc-100">{course.name}</h2>
         <div className="flex items-center gap-2 mt-1.5 text-xs text-zinc-400 font-mono">
-          <span>{course.credits || 4} Créditos</span>
-          <span className="w-1 h-1 rounded-full bg-zinc-600"></span>
           <span>{regularAssessments.length} Evaluaciones</span>
         </div>
       </div>
@@ -41,11 +42,13 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
             <p className="text-xs text-zinc-400 italic">No hay evaluaciones configuradas en el curso.</p>
           </div>
         ) : (
-          regularAssessments.map((ev) => (
+          regularAssessments.map((ev, index) => (
             <AssessmentRow
               key={ev.id}
               assessment={ev}
+              index={index}
               onUpdateGrade={onUpdateGrade}
+              onUpdateWeight={onUpdateWeight}
             />
           ))
         )}
@@ -67,6 +70,7 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
             <AssessmentRow
               assessment={substituteExam}
               onUpdateGrade={onUpdateGrade}
+              onUpdateWeight={onUpdateWeight}
               isSubstitute
             />
           )}

@@ -24,7 +24,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           <h3 className="font-medium text-sm leading-tight text-zinc-100 group-hover:text-white transition-colors">
             {course.name}
           </h3>
-          <p className="text-xs text-zinc-400 mt-1 font-mono">{course.credits || 4} Créditos</p>
+          {/* <p className="text-xs text-zinc-400 mt-1 font-mono">Promedio: {course.average !== undefined ? course.average.toFixed(1) : "No registra"}</p> */}
         </div>
         <Badge id={`course-grade-${course.id}`} variant="flat">
           {average.toFixed(1)}

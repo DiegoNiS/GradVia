@@ -41,7 +41,7 @@ export const CourseDetailsView: React.FC = () => {
   }, [id]);
 
   const handleUpdateGrade = async (assessmentId: string, newGradeStr: string) => {
-    const newGrade = parseFloat(newGradeStr);
+    const newGrade = parseInt(newGradeStr, 10);
     if (isNaN(newGrade) || newGrade < 0 || newGrade > 20) return;
 
     setLocalAssessments((prev) =>
@@ -50,6 +50,21 @@ export const CourseDetailsView: React.FC = () => {
 
     try {
       await updateAssessment(assessmentId, { grade: newGrade });
+    } catch (err: any) {
+      setError(parseApiError(err));
+    }
+  };
+
+  const handleUpdateWeight = async (assessmentId: string, newWeightStr: string) => {
+    const newWeight = parseInt(newWeightStr, 10);
+    if (isNaN(newWeight) || newWeight < 0 || newWeight > 100) return;
+
+    setLocalAssessments((prev) =>
+      prev.map((a) => (a.id === assessmentId ? { ...a, weightPercentage: newWeight } : a))
+    );
+
+    try {
+      await updateAssessment(assessmentId, { weightPercentage: newWeight });
     } catch (err: any) {
       setError(parseApiError(err));
     }
@@ -97,9 +112,9 @@ export const CourseDetailsView: React.FC = () => {
     );
   }
 
-  const regularAssessments = localAssessments.filter((a) => a.type !== 'SUBSTITUTE');
+  const regularAssessments = localAssessments.filter((a) => a.type !== 'SUBSTITUTE' && a.isIncluded !== false);
   const getCourseAverage = () => {
-    if (localAssessments.length === 0) return 0;
+    if (regularAssessments.length === 0) return 0;
     let totalWeight = 0;
     let totalScore = 0;
 
@@ -132,6 +147,7 @@ export const CourseDetailsView: React.FC = () => {
           showSubstitute={showSubstitute}
           onToggleSubstitute={handleToggleSubstitute}
           onUpdateGrade={handleUpdateGrade}
+          onUpdateWeight={handleUpdateWeight}
           courseAverage={getCourseAverage()}
         />
       )}

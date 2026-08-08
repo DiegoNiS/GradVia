@@ -26,7 +26,7 @@ export const CoursesPanel: React.FC<CoursesPanelProps> = ({
         <>
           <div id="courses-header" className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-1">
             <div>
-              <h1 className="text-lg font-medium tracking-tight text-zinc-100">{selectedSemester.name}</h1>
+              <h1 className="text-lg font-medium tracking-tight text-zinc-100">Cursos del Semestre</h1>
               <p className="text-xs text-zinc-400 mt-0.5 font-mono">Promedio acumulado: {selectedSemester.gpa || 0}</p>
             </div>
             <Button
