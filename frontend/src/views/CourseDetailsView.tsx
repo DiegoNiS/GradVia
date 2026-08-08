@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getCourseDetails, updateAssessment, createAssessment } from '../services/api';
+import { getCourseDetails, getCoursesBySemesterId, updateAssessment, createAssessment } from '../services/api';
 import type { Course, Assessment } from '../types';
 import { parseApiError, type ParsedApiError } from '../utils/apiError';
 import { ErrorMessage } from '../components/core/ErrorMessage';
@@ -13,6 +13,7 @@ export const CourseDetailsView: React.FC = () => {
   const { id } = useParams();
 
   const [course, setCourse] = useState<Course | null>(null);
+  const [siblingCourses, setSiblingCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSubstitute, setShowSubstitute] = useState(false);
   const [localAssessments, setLocalAssessments] = useState<Assessment[]>([]);
@@ -29,6 +30,10 @@ export const CourseDetailsView: React.FC = () => {
         setLocalAssessments(data.assessments || []);
         const hasSub = data.assessments?.some((a) => a.type === 'SUBSTITUTE');
         if (hasSub) setShowSubstitute(true);
+
+        // Cargar los cursos hermanos del mismo semestre para navegación secuencial
+        const siblings = await getCoursesBySemesterId(data.semesterId);
+        setSiblingCourses(siblings);
       }
     } catch (err: any) {
       setError(parseApiError(err));
@@ -93,11 +98,20 @@ export const CourseDetailsView: React.FC = () => {
     }
   };
 
+  // Obtener el ID del siguiente curso (haciendo ciclo circular al llegar al ultimo)
+  const getNextCourseId = (): string | null => {
+    if (!course || siblingCourses.length <= 1) return null;
+    const currentIndex = siblingCourses.findIndex((c) => c.id === course.id);
+    if (currentIndex === -1) return null;
+    const nextIndex = (currentIndex + 1) % siblingCourses.length;
+    return siblingCourses[nextIndex].id;
+  };
+
   if (loading) {
     return (
       <div id="course-details-container" className="h-full flex flex-col gap-6 max-w-2xl mx-auto w-full mt-4">
-        <div className="flex items-center">
-          <Button id="btn-back-dashboard" variant="secondary" onClick={() => navigate(-1)}>
+        <div className="flex items-center justify-between gap-4">
+          <Button id="btn-back-dashboard" variant="secondary" onClick={() => navigate('/dashboard')}>
             ← Volver al Dashboard
           </Button>
         </div>
@@ -111,8 +125,8 @@ export const CourseDetailsView: React.FC = () => {
       <div className="h-full flex flex-col items-center justify-center gap-4 flex-1 py-16">
         {error && <ErrorMessage error={error} className="max-w-md" />}
         <p className="text-xs text-zinc-400">Curso no encontrado.</p>
-        <Button id="btn-back-error" variant="secondary" onClick={() => navigate(-1)}>
-          ← Volver
+        <Button id="btn-back-error" variant="secondary" onClick={() => navigate('/dashboard')}>
+          ← Volver al Dashboard
         </Button>
       </div>
     );
@@ -132,16 +146,29 @@ export const CourseDetailsView: React.FC = () => {
     return totalWeight > 0 ? totalScore / (totalWeight / 100) : 0;
   };
 
+  const nextCourseId = getNextCourseId();
+
   return (
     <div id="course-details-container" className="h-full flex flex-col gap-6 max-w-2xl mx-auto w-full mt-4">
-      <div className="flex items-center">
+      {/* Barra de Navegacion Superior de la Vista de Curso */}
+      <div className="flex items-center justify-between gap-4">
         <Button
           id="btn-back-dashboard"
           variant="secondary"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/dashboard')}
         >
           ← Volver al Dashboard
         </Button>
+
+        {nextCourseId && (
+          <Button
+            id="btn-next-course"
+            variant="secondary"
+            onClick={() => navigate(`/course/${nextCourseId}`)}
+          >
+            Siguiente Curso →
+          </Button>
+        )}
       </div>
 
       {error && <ErrorMessage error={error} onClose={() => setError(null)} />}
