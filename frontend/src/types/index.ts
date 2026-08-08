@@ -3,10 +3,13 @@ export type AssessmentType = 'MIDTERM' | 'CONTINUOUS' | 'SUBSTITUTE' | 'OTHER';
 export interface Assessment {
   id: string;
   courseId: string;
-  name: string;
   type: AssessmentType;
+  number: number;
+  orderIndex?: number;
   weightPercentage: number | null;
   grade: number;
+  isIncluded?: boolean;
+  targetGrade?: number | null;
   createdAt: string;
 }
 
@@ -15,10 +18,11 @@ export interface Course {
   semesterId: string;
   name: string;
   isArchived: boolean;
+  targetGrade?: number | null;
   createdAt: string;
-  assessments?: Assessment[]; // Eager loaded from API
+  assessments?: Assessment[];
   
-  // Computed values (frontend fallback logic uses these if populated)
+  // Computed values
   credits?: number; 
   average?: number; 
 }
@@ -26,10 +30,11 @@ export interface Course {
 export interface Semester {
   id: string;
   userId: string;
-  name: string;
+  number: number;
   isCurrent: boolean;
+  isArchived: boolean;
   createdAt: string;
-  courses?: Course[]; // Eager loaded from API
+  courses?: Course[];
   
   // Computed values
   gpa?: number; 
@@ -45,21 +50,24 @@ export interface User {
 
 // Estructura para Carga/Importación Masiva (Bulk Sync)
 export interface BulkSyncAssessmentInput {
-  name: string;
   type: AssessmentType;
+  number?: number;
   grade?: number;
   weightPercentage?: number | null;
+  isIncluded?: boolean;
+  targetGrade?: number | null;
 }
 
 export interface BulkSyncCourseInput {
   name: string;
   isArchived?: boolean;
+  targetGrade?: number | null;
   assessments?: BulkSyncAssessmentInput[];
 }
 
 export interface BulkSyncSemesterPayload {
   userId: string;
-  semesterName: string;
   isCurrent?: boolean;
+  isArchived?: boolean;
   courses: BulkSyncCourseInput[];
 }

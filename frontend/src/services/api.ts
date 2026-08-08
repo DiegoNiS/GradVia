@@ -37,7 +37,7 @@ export const getMe = async (): Promise<User> => {
 };
 
 // ==== SEMESTERS ====
-export const createSemester = async (data: { userId: string; name: string; isCurrent: boolean }): Promise<Semester> => {
+export const createSemester = async (data: { userId: string; isCurrent: boolean }): Promise<Semester> => {
   const response = await api.post('/semesters', data);
   return response.data;
 };
@@ -99,7 +99,7 @@ export const createAssessment = async (data: any): Promise<Assessment> => {
   return response.data;
 };
 
-export const updateAssessment = async (id: string, data: { name?: string; grade?: number; weightPercentage?: number }): Promise<Assessment> => {
+export const updateAssessment = async (id: string, data: { grade?: number; weightPercentage?: number; isIncluded?: boolean; targetGrade?: number | null }): Promise<Assessment> => {
   const response = await api.patch(`/assessments/${id}`, data);
   return response.data;
 };
