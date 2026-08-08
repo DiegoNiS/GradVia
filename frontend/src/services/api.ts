@@ -37,7 +37,7 @@ export const getMe = async (): Promise<User> => {
 };
 
 // ==== SEMESTERS ====
-export const createSemester = async (data: { userId: string; isCurrent: boolean }): Promise<Semester> => {
+export const createSemester = async (data: { userId: string; isCurrent: boolean; number?: number }): Promise<Semester> => {
   const response = await api.post('/semesters', data);
   return response.data;
 };

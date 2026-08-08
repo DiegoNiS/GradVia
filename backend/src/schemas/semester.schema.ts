@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const createSemesterSchema = z.object({
   userId: z.string().uuid('ID de usuario no válido'),
+  number: z.number().int('El número de semestre debe ser un número entero').min(1).max(30).optional(),
   isCurrent: z.boolean().optional(),
   isArchived: z.boolean().optional(),
 });
