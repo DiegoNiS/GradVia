@@ -6,6 +6,7 @@ export interface AssessmentRowProps {
   assessment: Assessment;
   index?: number;
   title?: string;
+  editMode?: 'GRADES' | 'WEIGHTS';
   onUpdateGrade: (assessmentId: string, newGradeStr: string) => void;
   onUpdateWeight?: (assessmentId: string, newWeightStr: string) => void;
   isSubstitute?: boolean;
@@ -15,6 +16,7 @@ export const AssessmentRow: React.FC<AssessmentRowProps> = ({
   assessment,
   index = 0,
   title,
+  editMode = 'GRADES',
   onUpdateGrade,
   onUpdateWeight,
   isSubstitute = false,
@@ -93,56 +95,79 @@ export const AssessmentRow: React.FC<AssessmentRowProps> = ({
   return (
     <div
       id={isSubstitute ? 'evaluation-item-substitute' : `evaluation-item-${assessment.id}`}
-      className={`p-4 rounded-xl flex items-center justify-between group transition-colors ${
-        isSubstitute ? 'border border-zinc-700/60 bg-zinc-900/60 mt-1' : 'neu-button'
+      className={`p-4 rounded-2xl flex items-center justify-between group transition-all duration-200 ${
+        isSubstitute ? 'border border-zinc-800 bg-zinc-900/40 mt-1' : 'neu-button'
       }`}
     >
-      <div id={isSubstitute ? 'eval-info-substitute' : `eval-info-${assessment.id}`} className="flex flex-col gap-0.5">
-        <p className="text-sm font-medium text-zinc-100">{displayTitle}</p>
+      <div id={isSubstitute ? 'eval-info-substitute' : `eval-info-${assessment.id}`} className="flex flex-col gap-1 min-w-0 pr-3">
+        <p className="text-sm font-medium text-zinc-100 truncate">{displayTitle}</p>
         
         {isSubstitute ? (
           <p className="text-xs text-zinc-400 font-mono">Sustituye la nota más baja del curso</p>
         ) : (
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
-            <span>Peso:</span>
-            {onUpdateWeight ? (
-              <div className="flex items-center">
-                <input
-                  id={`input-weight-${assessment.id}`}
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  placeholder="0"
-                  value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                  onBlur={handleWeightBlur}
-                  onKeyDown={handleGradeKeyDown}
-                  className="w-10 bg-transparent border-b border-zinc-700 text-center text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-300 py-0 px-0.5"
-                />
-                <span className="ml-0.5">%</span>
-              </div>
+          <div className="flex items-center gap-2 text-xs">
+            {/* Tag de Peso / Nota segun el modo activo */}
+            {editMode === 'GRADES' ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono text-[11px]">
+                <span>Peso:</span>
+                <strong className="text-zinc-200 font-medium">
+                  {assessment.weightPercentage !== null && assessment.weightPercentage !== undefined ? `${assessment.weightPercentage}%` : '0%'}
+                </strong>
+              </span>
             ) : (
-              <span>{assessment.weightPercentage !== null ? `${assessment.weightPercentage}%` : 'No asignado'}</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono text-[11px]">
+                <span>Nota Actual:</span>
+                <strong className="text-zinc-200 font-medium">
+                  {assessment.grade || 0}
+                </strong>
+              </span>
             )}
           </div>
         )}
       </div>
 
-      <div id={isSubstitute ? 'eval-input-substitute' : `eval-input-${assessment.id}`} className="w-20">
-        <Input
-          id={isSubstitute ? 'input-substitute-grade' : `input-grade-${assessment.id}`}
-          type="number"
-          placeholder="0"
-          min="0"
-          max="20"
-          step="1"
-          value={gradeInput}
-          onChange={(e) => setGradeInput(e.target.value)}
-          onBlur={handleGradeBlur}
-          onKeyDown={handleGradeKeyDown}
-          className="text-center font-mono font-medium text-sm py-1"
-        />
+      {/* Control Activo segun Modo Seleccionado */}
+      <div id={isSubstitute ? 'eval-input-substitute' : `eval-input-${assessment.id}`} className="flex items-center gap-2">
+        {editMode === 'GRADES' ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-zinc-400 font-mono hidden sm:inline">Nota</span>
+            <div className="w-20">
+              <Input
+                id={isSubstitute ? 'input-substitute-grade' : `input-grade-${assessment.id}`}
+                type="number"
+                placeholder="0"
+                min="0"
+                max="20"
+                step="1"
+                value={gradeInput}
+                onChange={(e) => setGradeInput(e.target.value)}
+                onBlur={handleGradeBlur}
+                onKeyDown={handleGradeKeyDown}
+                className="text-center font-mono font-medium text-sm py-1.5"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-zinc-400 font-mono hidden sm:inline">Peso %</span>
+            <div className="w-20 relative flex items-center">
+              <Input
+                id={`input-weight-${assessment.id}`}
+                type="number"
+                placeholder="0"
+                min="0"
+                max="100"
+                step="1"
+                value={weightInput}
+                onChange={(e) => setWeightInput(e.target.value)}
+                onBlur={handleWeightBlur}
+                onKeyDown={handleGradeKeyDown}
+                className="text-center font-mono font-medium text-sm py-1.5 pr-5"
+              />
+              <span className="absolute right-2 text-xs font-mono text-zinc-400 pointer-events-none">%</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
