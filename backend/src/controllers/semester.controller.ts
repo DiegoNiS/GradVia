@@ -4,15 +4,24 @@ import prisma from '../db';
 export const createSemester = async (req: Request, res: Response) => {
   try {
     const authUserId = (req as any).user?.userId;
-    const { userId, isCurrent } = req.body;
+    const { userId, isCurrent, number } = req.body;
     
-    // El usuario solo puede crear semestres para su propia cuenta autenticada
     const targetUserId = authUserId || userId;
     if (!targetUserId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
     const count = await prisma.semester.count({ where: { userId: targetUserId } });
+    let semesterNumber = number !== undefined ? Number(number) : count + 1;
+
+    if (number !== undefined) {
+      const existing = await prisma.semester.findFirst({
+        where: { userId: targetUserId, number: semesterNumber },
+      });
+      if (existing) {
+        return res.status(400).json({ error: `El Semestre ${semesterNumber} ya existe en tu cuenta` });
+      }
+    }
 
     if (isCurrent) {
       await prisma.semester.updateMany({
@@ -24,7 +33,7 @@ export const createSemester = async (req: Request, res: Response) => {
     const semester = await prisma.semester.create({
       data: {
         userId: targetUserId,
-        number: count + 1,
+        number: semesterNumber,
         isCurrent: isCurrent || false,
         isArchived: false,
       },
@@ -48,7 +57,7 @@ export const getSemestersByUser = async (req: Request, res: Response) => {
 
     const semesters = await prisma.semester.findMany({
       where: { userId },
-      orderBy: { number: 'asc' },
+      orderBy: [{ isCurrent: 'desc' }, { number: 'desc' }],
     });
     res.status(200).json(semesters);
   } catch (error: any) {

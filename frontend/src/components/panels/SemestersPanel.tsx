@@ -25,8 +25,16 @@ export const SemestersPanel: React.FC<SemestersPanelProps> = ({
 }) => {
   const [showArchived, setShowArchived] = useState(false);
 
-  // Filtrar archivados por defecto a menos que el usuario active la casilla
+  // 1. Filtrar archivados por defecto
   const visibleSemesters = semesters.filter((s) => (showArchived ? true : !s.isArchived));
+
+  // 2. Ordenar: Primero el semestre actual (isCurrent: true), seguido de los demás en orden inverso (más reciente/alto primero, más antiguo al final/debajo)
+  const sortedSemesters = [...visibleSemesters].sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    return b.number - a.number;
+  });
+
   const hasArchived = semesters.some((s) => s.isArchived);
 
   return (
@@ -64,14 +72,14 @@ export const SemestersPanel: React.FC<SemestersPanelProps> = ({
 
       {/* Disposición Responsiva: Cuadrícula en dispositivos pequeños, Lista vertical en Desktop */}
       <div id="semesters-list" className="w-full grid grid-cols-2 sm:grid-cols-3 xl:flex xl:flex-col gap-3">
-        {visibleSemesters.length === 0 ? (
+        {sortedSemesters.length === 0 ? (
           <div className="col-span-full w-full py-8 text-center text-xs text-zinc-400 border border-zinc-800/60 rounded-2xl p-4">
             {showArchived
               ? 'No tienes semestres archivados.'
               : 'Aún no tienes semestres activos. Crea uno con el botón "+" o impórtalo desde la configuración.'}
           </div>
         ) : (
-          visibleSemesters.map((sem, index) => (
+          sortedSemesters.map((sem, index) => (
             <SemesterItem
               key={sem.id}
               semester={sem}
