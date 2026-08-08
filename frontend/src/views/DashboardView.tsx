@@ -42,7 +42,7 @@ export const DashboardView: React.FC = () => {
     }
   };
 
-  const fetchSemesters = async () => {
+  const fetchSemesters = async (overrideTargetId?: string) => {
     if (!user) return;
     setLoading(true);
     setGlobalError(null);
@@ -52,10 +52,14 @@ export const DashboardView: React.FC = () => {
       setSemesters(data);
 
       if (data.length > 0) {
-        // 2. Cargar detalle especifico del semestre seleccionado o actual
-        const targetId = selectedSemester
-          ? (data.find((s) => s.id === selectedSemester.id)?.id || data[0].id)
-          : (data.find((s) => s.isCurrent)?.id || data[0].id);
+        // 2. Cargar el semestre especificado en override, o el seleccionado en estado, o el marcado como isCurrent
+        let targetId = overrideTargetId;
+        if (!targetId && selectedSemester) {
+          targetId = data.find((s) => s.id === selectedSemester.id)?.id;
+        }
+        if (!targetId) {
+          targetId = data.find((s) => s.isCurrent)?.id || data[0].id;
+        }
 
         await fetchSemesterDetails(targetId);
       } else {
@@ -72,13 +76,18 @@ export const DashboardView: React.FC = () => {
     fetchSemesters();
   }, [user]);
 
-  const handleCreateSemester = async () => {
+  const handleCreateSemester = async (semesterNumber: number) => {
     if (!user) return;
     setModalError(null);
     try {
-      await createSemester({ userId: user.id, isCurrent: semesters.length === 0 });
+      const newSemester = await createSemester({
+        userId: user.id,
+        isCurrent: true,
+        number: semesterNumber,
+      });
       setShowSemesterModal(false);
-      await fetchSemesters();
+      // Re-obtener semestres e inmediatamente seleccionar y mostrar el nuevo semestre creado
+      await fetchSemesters(newSemester.id);
     } catch (err: any) {
       setModalError(parseApiError(err));
     }
@@ -90,7 +99,8 @@ export const DashboardView: React.FC = () => {
     try {
       await createCourse({ semesterId: selectedSemester.id, name });
       setShowCourseModal(false);
-      await fetchSemesters();
+      // Re-obtener los detalles del semestre seleccionado para mostrar el nuevo curso inmediatamente
+      await fetchSemesterDetails(selectedSemester.id);
     } catch (err: any) {
       setModalError(parseApiError(err));
     }
@@ -152,13 +162,13 @@ export const DashboardView: React.FC = () => {
     if (!user || parsedCourses.length === 0) return;
     setModalError(null);
     try {
-      await bulkSyncSemester({
+      const importedSemester = await bulkSyncSemester({
         userId: user.id,
-        isCurrent: semesters.length === 0,
+        isCurrent: true,
         courses: parsedCourses,
       });
       setShowImportModal(false);
-      await fetchSemesters();
+      await fetchSemesters(importedSemester.id);
     } catch (err: any) {
       setModalError(parseApiError(err));
     }
@@ -255,6 +265,7 @@ export const DashboardView: React.FC = () => {
       {/* Modales Modulares */}
       <SemesterModal
         isOpen={showSemesterModal}
+        existingNumbers={semesters.map((s) => s.number)}
         onClose={() => setShowSemesterModal(false)}
         onSubmit={handleCreateSemester}
         error={modalError}
