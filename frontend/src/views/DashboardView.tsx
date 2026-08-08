@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSemestersByUserId, getSemesterById, createSemester, createCourse, bulkSyncSemester } from '../services/api';
+import {
+  getSemestersByUserId,
+  getSemesterById,
+  createSemester,
+  updateSemester,
+  deleteSemester,
+  createCourse,
+  bulkSyncSemester,
+} from '../services/api';
 import type { Semester, Course, BulkSyncCourseInput } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { parseApiError, type ParsedApiError } from '../utils/apiError';
@@ -52,13 +60,12 @@ export const DashboardView: React.FC = () => {
       setSemesters(data);
 
       if (data.length > 0) {
-        // 2. Cargar el semestre especificado en override, o el seleccionado en estado, o el marcado como isCurrent
         let targetId = overrideTargetId;
         if (!targetId && selectedSemester) {
           targetId = data.find((s) => s.id === selectedSemester.id)?.id;
         }
         if (!targetId) {
-          targetId = data.find((s) => s.isCurrent)?.id || data[0].id;
+          targetId = data.find((s) => s.isCurrent && !s.isArchived)?.id || data.find((s) => !s.isArchived)?.id || data[0].id;
         }
 
         await fetchSemesterDetails(targetId);
@@ -80,16 +87,46 @@ export const DashboardView: React.FC = () => {
     if (!user) return;
     setModalError(null);
     try {
+      // Todo nuevo semestre se crea forzosamente como actual (isCurrent: true)
       const newSemester = await createSemester({
         userId: user.id,
         isCurrent: true,
         number: semesterNumber,
       });
       setShowSemesterModal(false);
-      // Re-obtener semestres e inmediatamente seleccionar y mostrar el nuevo semestre creado
       await fetchSemesters(newSemester.id);
     } catch (err: any) {
       setModalError(parseApiError(err));
+    }
+  };
+
+  const handleSetCurrentSemester = async (semester: Semester) => {
+    try {
+      await updateSemester(semester.id, { isCurrent: true });
+      await fetchSemesters(semester.id);
+    } catch (err: any) {
+      setGlobalError(parseApiError(err));
+    }
+  };
+
+  const handleArchiveSemester = async (semester: Semester) => {
+    try {
+      await updateSemester(semester.id, { isArchived: !semester.isArchived });
+      await fetchSemesters();
+    } catch (err: any) {
+      setGlobalError(parseApiError(err));
+    }
+  };
+
+  const handleDeleteSemester = async (semester: Semester) => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar el Semestre ${semester.number}? Esta acción eliminará todos sus cursos y notas.`)) {
+      return;
+    }
+    try {
+      await deleteSemester(semester.id);
+      await fetchSemesters();
+    } catch (err: any) {
+      setGlobalError(parseApiError(err));
     }
   };
 
@@ -99,7 +136,6 @@ export const DashboardView: React.FC = () => {
     try {
       await createCourse({ semesterId: selectedSemester.id, name });
       setShowCourseModal(false);
-      // Re-obtener los detalles del semestre seleccionado para mostrar el nuevo curso inmediatamente
       await fetchSemesterDetails(selectedSemester.id);
     } catch (err: any) {
       setModalError(parseApiError(err));
@@ -249,6 +285,9 @@ export const DashboardView: React.FC = () => {
             setModalError(null);
             setShowSemesterModal(true);
           }}
+          onSetCurrentSemester={handleSetCurrentSemester}
+          onArchiveSemester={handleArchiveSemester}
+          onDeleteSemester={handleDeleteSemester}
         />
 
         <CoursesPanel
