@@ -10,7 +10,7 @@ export const validateBody = (schema: ZodSchema) => {
       if (error instanceof ZodError) {
         return res.status(400).json({
           error: 'Error de validación',
-          details: error.errors.map((e) => ({
+          details: error.issues.map((e) => ({
             field: e.path.join('.'),
             message: e.message,
           })),
