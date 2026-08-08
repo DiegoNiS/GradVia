@@ -17,6 +17,22 @@ export const CoursesPanel: React.FC<CoursesPanelProps> = ({
   onSelectCourse,
   getCourseAverage,
 }) => {
+  const coursesList = selectedSemester?.courses || [];
+  const totalCourses = coursesList.length;
+
+  // Contar cuántos cursos tienen todas sus evaluaciones con notas registradas (> 0)
+  const completedCourses = coursesList.filter((course) => {
+    const weighted = (course.assessments || []).filter(
+      (a) =>
+        a.weightPercentage !== null &&
+        a.weightPercentage !== undefined &&
+        a.weightPercentage > 0 &&
+        a.type !== 'SUBSTITUTE' &&
+        a.isIncluded !== false
+    );
+    return weighted.length > 0 && weighted.every((a) => a.grade > 0);
+  }).length;
+
   return (
     <Card
       id="panel-courses"
@@ -27,7 +43,9 @@ export const CoursesPanel: React.FC<CoursesPanelProps> = ({
           <div id="courses-header" className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-1">
             <div>
               <h1 className="text-lg font-medium tracking-tight text-zinc-100">Cursos del Semestre</h1>
-              <p className="text-xs text-zinc-400 mt-0.5 font-mono">Promedio acumulado: {selectedSemester.gpa || 0}</p>
+              <p className="text-xs text-zinc-400 mt-0.5 font-mono">
+                Cursos completados: {completedCourses} / {totalCourses}
+              </p>
             </div>
             <Button
               id="btn-add-course"
@@ -39,12 +57,12 @@ export const CoursesPanel: React.FC<CoursesPanelProps> = ({
           </div>
 
           <div id="courses-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(!selectedSemester.courses || selectedSemester.courses.length === 0) ? (
+            {coursesList.length === 0 ? (
               <div className="col-span-full py-12 text-center text-xs text-zinc-400 border border-zinc-800/60 rounded-2xl">
                 No hay cursos en este semestre. Crea uno para empezar.
               </div>
             ) : (
-              selectedSemester.courses.map((course) => (
+              coursesList.map((course) => (
                 <CourseCard
                   key={course.id}
                   course={course}

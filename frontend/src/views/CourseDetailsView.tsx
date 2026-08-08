@@ -125,7 +125,7 @@ export const CourseDetailsView: React.FC = () => {
 
     if (substitute && substitute.grade > 0) {
       if (substitute.grade > lowestGrade) {
-        return `Reemplaza la nota del ${lowestName} (anteriormente ${lowestGrade}, sustituida por ${substitute.grade})`;
+        return `Reemplaza la nota del ${lowestName} (anteriormente ${lowestGrade})`;
       } else {
         return `No supera la nota del ${lowestName} (${lowestGrade}), no se aplica reemplazo`;
       }
