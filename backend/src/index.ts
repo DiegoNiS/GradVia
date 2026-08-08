@@ -11,7 +11,7 @@ import { authenticateToken } from './middleware/auth.middleware';
 import { errorHandler } from './middleware/error.middleware';
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors());
@@ -39,10 +39,8 @@ app.get('/api/db-check', async (req: Request, res: Response) => {
 // Manejador global de errores
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 export default app;
