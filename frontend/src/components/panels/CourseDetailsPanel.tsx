@@ -8,6 +8,7 @@ export interface CourseDetailsPanelProps {
   course: Course;
   assessments: Assessment[];
   showSubstitute: boolean;
+  substituteSubtitle?: string;
   onToggleSubstitute: () => void;
   onUpdateGrade: (assessmentId: string, newGradeStr: string) => void;
   onUpdateWeight: (assessmentId: string, newWeightStr: string) => void;
@@ -18,6 +19,7 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
   course,
   assessments,
   showSubstitute,
+  substituteSubtitle,
   onToggleSubstitute,
   onUpdateGrade,
   onUpdateWeight,
@@ -44,7 +46,7 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
           <span className="text-xs font-medium text-zinc-300">Promedio Referencial</span>
         </div>
 
-        {/* Indicador Elegante de Promedio (Mismo estilo que CourseCard) */}
+        {/* Indicador Elegante de Promedio */}
         <div
           id="course-average-pill"
           className="flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700/80 shadow-xs"
@@ -133,6 +135,7 @@ export const CourseDetailsPanel: React.FC<CourseDetailsPanelProps> = ({
             <AssessmentRow
               assessment={substituteExam}
               editMode={editMode}
+              substituteSubtitle={substituteSubtitle}
               onUpdateGrade={onUpdateGrade}
               onUpdateWeight={onUpdateWeight}
               isSubstitute

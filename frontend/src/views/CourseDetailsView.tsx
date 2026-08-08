@@ -98,13 +98,78 @@ export const CourseDetailsView: React.FC = () => {
     }
   };
 
-  // Obtener el ID del siguiente curso (haciendo ciclo circular al llegar al ultimo)
+  // Obtener el ID del siguiente curso (ciclo circular al llegar al ultimo)
   const getNextCourseId = (): string | null => {
     if (!course || siblingCourses.length <= 1) return null;
     const currentIndex = siblingCourses.findIndex((c) => c.id === course.id);
     if (currentIndex === -1) return null;
     const nextIndex = (currentIndex + 1) % siblingCourses.length;
     return siblingCourses[nextIndex].id;
+  };
+
+  // Explicación dinámica del impacto del Examen Sustitutorio (Sólo reemplaza Parcial 1 o Parcial 2)
+  const getSubstituteSubtitle = () => {
+    const midterm1 = localAssessments.find((a) => a.type === 'MIDTERM' && a.number === 1);
+    const midterm2 = localAssessments.find((a) => a.type === 'MIDTERM' && a.number === 2);
+    const substitute = localAssessments.find((a) => a.type === 'SUBSTITUTE');
+
+    const m1Grade = midterm1 ? midterm1.grade : 21;
+    const m2Grade = midterm2 ? midterm2.grade : 21;
+
+    if (!midterm1 && !midterm2) {
+      return 'Sustituye la nota más baja entre el Parcial 1 y Parcial 2';
+    }
+
+    const lowestName = m1Grade <= m2Grade ? 'Parcial 1' : 'Parcial 2';
+    const lowestGrade = m1Grade <= m2Grade ? (midterm1 ? midterm1.grade : 0) : (midterm2 ? midterm2.grade : 0);
+
+    if (substitute && substitute.grade > 0) {
+      if (substitute.grade > lowestGrade) {
+        return `Reemplaza la nota del ${lowestName} (anteriormente ${lowestGrade}, sustituida por ${substitute.grade})`;
+      } else {
+        return `No supera la nota del ${lowestName} (${lowestGrade}), no se aplica reemplazo`;
+      }
+    }
+
+    return `Reemplazará la nota más baja entre Parcial 1 y Parcial 2 (actualmente ${lowestName}: ${lowestGrade})`;
+  };
+
+  // Cálculo dinámico del promedio del curso
+  const getCourseAverage = () => {
+    let assessmentsToUse = localAssessments.filter((a) => a.type !== 'SUBSTITUTE' && a.isIncluded !== false);
+
+    // Regla de Examen Sustitutorio: Reemplaza ÚNICAMENTE al Parcial 1 o Parcial 2 si su nota es superior
+    const subExam = localAssessments.find((a) => a.type === 'SUBSTITUTE');
+    if (showSubstitute && subExam && subExam.grade > 0) {
+      const midterm1 = assessmentsToUse.find((a) => a.type === 'MIDTERM' && a.number === 1);
+      const midterm2 = assessmentsToUse.find((a) => a.type === 'MIDTERM' && a.number === 2);
+
+      let targetMidterm: Assessment | undefined;
+      if (midterm1 && midterm2) {
+        targetMidterm = midterm1.grade <= midterm2.grade ? midterm1 : midterm2;
+      } else if (midterm1) {
+        targetMidterm = midterm1;
+      } else if (midterm2) {
+        targetMidterm = midterm2;
+      }
+
+      if (targetMidterm && subExam.grade > targetMidterm.grade) {
+        assessmentsToUse = assessmentsToUse.map((a) =>
+          a.id === targetMidterm!.id ? { ...a, grade: subExam.grade } : a
+        );
+      }
+    }
+
+    if (assessmentsToUse.length === 0) return 0;
+    let totalWeight = 0;
+    let totalScore = 0;
+
+    assessmentsToUse.forEach((a) => {
+      const w = a.weightPercentage || 100 / (assessmentsToUse.length || 1);
+      totalWeight += w;
+      totalScore += a.grade * (w / 100);
+    });
+    return totalWeight > 0 ? totalScore / (totalWeight / 100) : 0;
   };
 
   if (loading) {
@@ -132,25 +197,11 @@ export const CourseDetailsView: React.FC = () => {
     );
   }
 
-  const regularAssessments = localAssessments.filter((a) => a.type !== 'SUBSTITUTE' && a.isIncluded !== false);
-  const getCourseAverage = () => {
-    if (regularAssessments.length === 0) return 0;
-    let totalWeight = 0;
-    let totalScore = 0;
-
-    regularAssessments.forEach((a) => {
-      const w = a.weightPercentage || 100 / (regularAssessments.length || 1);
-      totalWeight += w;
-      totalScore += a.grade * (w / 100);
-    });
-    return totalWeight > 0 ? totalScore / (totalWeight / 100) : 0;
-  };
-
   const nextCourseId = getNextCourseId();
 
   return (
     <div id="course-details-container" className="h-full flex flex-col gap-6 max-w-2xl mx-auto w-full mt-4">
-      {/* Barra de Navegacion Superior de la Vista de Curso */}
+      {/* Barra de Navegación Superior de la Vista de Curso */}
       <div className="flex items-center justify-between gap-4">
         <Button
           id="btn-back-dashboard"
@@ -178,6 +229,7 @@ export const CourseDetailsView: React.FC = () => {
           course={course}
           assessments={localAssessments}
           showSubstitute={showSubstitute}
+          substituteSubtitle={getSubstituteSubtitle()}
           onToggleSubstitute={handleToggleSubstitute}
           onUpdateGrade={handleUpdateGrade}
           onUpdateWeight={handleUpdateWeight}

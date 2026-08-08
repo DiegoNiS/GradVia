@@ -7,6 +7,7 @@ export interface AssessmentRowProps {
   index?: number;
   title?: string;
   editMode?: 'GRADES' | 'WEIGHTS';
+  substituteSubtitle?: string;
   onUpdateGrade: (assessmentId: string, newGradeStr: string) => void;
   onUpdateWeight?: (assessmentId: string, newWeightStr: string) => void;
   isSubstitute?: boolean;
@@ -17,6 +18,7 @@ export const AssessmentRow: React.FC<AssessmentRowProps> = ({
   index = 0,
   title,
   editMode = 'GRADES',
+  substituteSubtitle,
   onUpdateGrade,
   onUpdateWeight,
   isSubstitute = false,
@@ -103,7 +105,9 @@ export const AssessmentRow: React.FC<AssessmentRowProps> = ({
         <p className="text-sm font-medium text-zinc-100 truncate">{displayTitle}</p>
         
         {isSubstitute ? (
-          <p className="text-xs text-zinc-400 font-mono">Sustituye la nota más baja del curso</p>
+          <p className="text-xs text-zinc-400 font-mono">
+            {substituteSubtitle || 'Reemplaza la nota más baja entre Parcial 1 y Parcial 2'}
+          </p>
         ) : (
           <div className="flex items-center gap-2 text-xs">
             {/* Tag de Peso / Nota segun el modo activo */}
