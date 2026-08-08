@@ -6,6 +6,7 @@ import { parseApiError, type ParsedApiError } from '../utils/apiError';
 import { ErrorMessage } from '../components/core/ErrorMessage';
 import { Button } from '../components/core/Button';
 import { CourseDetailsPanel } from '../components/panels/CourseDetailsPanel';
+import { CourseDetailsSkeleton } from '../components/core/Skeleton';
 
 export const CourseDetailsView: React.FC = () => {
   const navigate = useNavigate();
@@ -94,8 +95,13 @@ export const CourseDetailsView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-1 items-center justify-center py-20">
-        <div className="w-8 h-8 rounded-full border-t-2 border-zinc-200 animate-spin"></div>
+      <div id="course-details-container" className="h-full flex flex-col gap-6 max-w-2xl mx-auto w-full mt-4">
+        <div className="flex items-center">
+          <Button id="btn-back-dashboard" variant="secondary" onClick={() => navigate(-1)}>
+            ← Volver al Dashboard
+          </Button>
+        </div>
+        <CourseDetailsSkeleton />
       </div>
     );
   }

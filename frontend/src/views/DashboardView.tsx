@@ -20,6 +20,7 @@ import { SemesterModal } from '../components/functional/SemesterModal';
 import { CourseModal } from '../components/functional/CourseModal';
 import { ImportCsvModal } from '../components/functional/ImportCsvModal';
 import { SettingsModal } from '../components/functional/SettingsModal';
+import { DashboardSkeleton } from '../components/core/Skeleton';
 
 export const DashboardView: React.FC = () => {
   const navigate = useNavigate();
@@ -227,8 +228,13 @@ export const DashboardView: React.FC = () => {
 
   if (loading && semesters.length === 0 && !globalError) {
     return (
-      <div className="h-full w-full flex items-center justify-center flex-1 py-20">
-        <div className="w-8 h-8 rounded-full border-t-2 border-zinc-200 animate-spin"></div>
+      <div id="dashboard-container" className="h-full flex flex-col gap-4 max-w-[1200px] mx-auto w-full mt-2">
+        <div id="user-info-bar" className="w-full flex items-center justify-between gap-4 py-1 text-sm">
+          <span className="text-zinc-300 text-sm md:text-base font-medium tracking-tight">
+            Hola, <strong className="text-zinc-100 font-semibold">{user?.username}</strong>
+          </span>
+        </div>
+        <DashboardSkeleton />
       </div>
     );
   }
