@@ -3,7 +3,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'gradvia_fallback_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not defined');
+}
 
 export const register = async (req: Request, res: Response) => {
   try {

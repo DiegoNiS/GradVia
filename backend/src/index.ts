@@ -11,7 +11,7 @@ import { authenticateToken } from './middleware/auth.middleware';
 import { errorHandler } from './middleware/error.middleware';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 app.use(helmet());
 app.use(cors());

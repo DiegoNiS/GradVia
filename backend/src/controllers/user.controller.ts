@@ -13,7 +13,7 @@ export const createUser = async (req: Request, res: Response) => {
       data: {
         email,
         username,
-        passwordHash: password_hash || 'mocked_hash_123',
+        passwordHash: password_hash,
       },
     });
 
