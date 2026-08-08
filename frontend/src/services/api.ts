@@ -1,8 +1,16 @@
 import axios from 'axios';
 import type { Semester, Course, Assessment, User } from '../types';
 
+// Normalizacion defensiva de la URL base para asegurar que siempre termine en /api
+const rawBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const baseURL = rawBaseURL.endsWith('/api')
+  ? rawBaseURL
+  : rawBaseURL.endsWith('/')
+  ? `${rawBaseURL}api`
+  : `${rawBaseURL}/api`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
