@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-zinc-700 selection:text-white;
+  }
+}
+
+@layer utilities {
+  /* Utility classes for Neumorphic Monochrome styling */
+  .neu-card {
+    background-color: #181818;
+    box-shadow: 6px 6px 14px rgba(0, 0, 0, 0.7), -5px -5px 12px rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .neu-card-sm {
+    background-color: #181818;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6), -3px -3px 7px rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Flat surface without bevel/inset shadow */
+  .neu-input {
+    background-color: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .neu-button {
+    background-color: #1a1a1a;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.7), -4px -4px 9px rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .neu-button:hover {
+    background-color: #202020;
+    box-shadow: 5px 5px 12px rgba(0, 0, 0, 0.8), -5px -5px 11px rgba(255, 255, 255, 0.06);
+  }
+
+  .neu-button:active, .neu-button-active {
+    background-color: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
