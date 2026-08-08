@@ -18,7 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', authenticateToken as any, userRoutes);
 app.use('/api/semesters', authenticateToken as any, semesterRoutes);
 app.use('/api/courses', authenticateToken as any, courseRoutes);
 app.use('/api/assessments', authenticateToken as any, assessmentRoutes);

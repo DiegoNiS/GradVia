@@ -25,7 +25,13 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { id } = req.params;
+
+    if (authUserId !== id) {
+      return res.status(403).json({ error: 'Acceso no autorizado al perfil de otro usuario' });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
@@ -37,7 +43,7 @@ export const getUserById = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     res.status(200).json(user);
@@ -48,8 +54,13 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { id } = req.params;
     const { email, username, password_hash } = req.body;
+
+    if (authUserId !== id) {
+      return res.status(403).json({ error: 'Acceso no autorizado para modificar otro usuario' });
+    }
 
     const data: any = {};
     if (email) data.email = email;
@@ -75,12 +86,18 @@ export const updateUser = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { id } = req.params;
+
+    if (authUserId !== id) {
+      return res.status(403).json({ error: 'Acceso no autorizado para eliminar otro usuario' });
+    }
+
     await prisma.user.delete({
       where: { id },
     });
 
-    res.status(200).json({ message: 'User deleted successfully' });
+    res.status(200).json({ message: 'Usuario eliminado exitosamente' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

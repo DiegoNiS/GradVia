@@ -3,24 +3,30 @@ import prisma from '../db';
 
 export const createSemester = async (req: Request, res: Response) => {
   try {
-    const { userId, name, isCurrent } = req.body;
+    const authUserId = (req as any).user?.userId;
+    const { userId, isCurrent } = req.body;
     
-    if (!userId || !name) {
-      return res.status(400).json({ error: 'userId and name are required' });
+    // El usuario solo puede crear semestres para su propia cuenta autenticada
+    const targetUserId = authUserId || userId;
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'userId is required' });
     }
+
+    const count = await prisma.semester.count({ where: { userId: targetUserId } });
 
     if (isCurrent) {
       await prisma.semester.updateMany({
-        where: { userId },
+        where: { userId: targetUserId },
         data: { isCurrent: false },
       });
     }
 
     const semester = await prisma.semester.create({
       data: {
-        userId,
-        name,
+        userId: targetUserId,
+        number: count + 1,
         isCurrent: isCurrent || false,
+        isArchived: false,
       },
     });
 
@@ -32,10 +38,17 @@ export const createSemester = async (req: Request, res: Response) => {
 
 export const getSemestersByUser = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { userId } = req.params;
+
+    // Verificar que el usuario solicita sus propios semestres
+    if (authUserId && authUserId !== userId) {
+      return res.status(403).json({ error: 'Acceso no autorizado a semestres de otro usuario' });
+    }
+
     const semesters = await prisma.semester.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { number: 'asc' },
     });
     res.status(200).json(semesters);
   } catch (error: any) {
@@ -45,20 +58,29 @@ export const getSemestersByUser = async (req: Request, res: Response) => {
 
 export const getSemesterById = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { id } = req.params;
-    const semester = await prisma.semester.findUnique({
-      where: { id },
+
+    // Consulta con verificación de propiedad por usuario
+    const semester = await prisma.semester.findFirst({
+      where: {
+        id,
+        userId: authUserId,
+      },
       include: {
         courses: {
           include: {
-            assessments: true,
+            assessments: {
+              orderBy: { orderIndex: 'asc' },
+            },
           },
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
 
     if (!semester) {
-      return res.status(404).json({ error: 'Semester not found' });
+      return res.status(404).json({ error: 'Semestre no encontrado o no autorizado' });
     }
 
     res.status(200).json(semester);
@@ -69,12 +91,16 @@ export const getSemesterById = async (req: Request, res: Response) => {
 
 export const updateSemester = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { id } = req.params;
-    const { name, isCurrent } = req.body;
+    const { isCurrent, isArchived } = req.body;
 
-    const existingSemester = await prisma.semester.findUnique({ where: { id } });
+    const existingSemester = await prisma.semester.findFirst({
+      where: { id, userId: authUserId },
+    });
+
     if (!existingSemester) {
-      return res.status(404).json({ error: 'Semester not found' });
+      return res.status(404).json({ error: 'Semestre no encontrado o no autorizado' });
     }
 
     if (isCurrent === true) {
@@ -85,8 +111,8 @@ export const updateSemester = async (req: Request, res: Response) => {
     }
 
     const data: any = {};
-    if (name !== undefined) data.name = name;
     if (isCurrent !== undefined) data.isCurrent = isCurrent;
+    if (isArchived !== undefined) data.isArchived = isArchived;
 
     const semester = await prisma.semester.update({
       where: { id },
@@ -101,12 +127,22 @@ export const updateSemester = async (req: Request, res: Response) => {
 
 export const deleteSemester = async (req: Request, res: Response) => {
   try {
+    const authUserId = (req as any).user?.userId;
     const { id } = req.params;
+
+    const existingSemester = await prisma.semester.findFirst({
+      where: { id, userId: authUserId },
+    });
+
+    if (!existingSemester) {
+      return res.status(404).json({ error: 'Semestre no encontrado o no autorizado' });
+    }
+
     await prisma.semester.delete({
       where: { id },
     });
 
-    res.status(200).json({ message: 'Semester deleted successfully' });
+    res.status(200).json({ message: 'Semestre eliminado exitosamente' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -114,31 +150,38 @@ export const deleteSemester = async (req: Request, res: Response) => {
 
 export const bulkSyncSemester = async (req: Request, res: Response) => {
   try {
-    const { userId, semesterName, isCurrent, courses } = req.body;
+    const authUserId = (req as any).user?.userId;
+    const { userId, isCurrent, courses } = req.body;
+    const targetUserId = authUserId || userId;
 
     const result = await prisma.$transaction(async (tx) => {
       if (isCurrent) {
         await tx.semester.updateMany({
-          where: { userId },
+          where: { userId: targetUserId },
           data: { isCurrent: false },
         });
       }
 
+      const count = await tx.semester.count({ where: { userId: targetUserId } });
       let semester = await tx.semester.findFirst({
-        where: { userId, name: semesterName },
+        where: { userId: targetUserId },
+        orderBy: { number: 'desc' },
       });
 
       if (semester) {
         semester = await tx.semester.update({
           where: { id: semester.id },
-          data: { isCurrent: isCurrent || false },
+          data: {
+            isCurrent: isCurrent || false,
+          },
         });
       } else {
         semester = await tx.semester.create({
           data: {
-            userId,
-            name: semesterName,
+            userId: targetUserId,
+            number: count + 1,
             isCurrent: isCurrent || false,
+            isArchived: false,
           },
         });
       }
@@ -151,22 +194,42 @@ export const bulkSyncSemester = async (req: Request, res: Response) => {
         if (course) {
           course = await tx.course.update({
             where: { id: course.id },
-            data: { isArchived: courseItem.isArchived ?? course.isArchived },
+            data: {
+              isArchived: courseItem.isArchived ?? course.isArchived,
+              targetGrade: courseItem.targetGrade !== undefined ? courseItem.targetGrade : course.targetGrade,
+            },
           });
         } else {
           course = await tx.course.create({
             data: {
               semesterId: semester.id,
               name: courseItem.name,
-              isArchived: courseItem.isArchived ?? false,
+              isArchived: false,
+              targetGrade: courseItem.targetGrade || null,
             },
           });
         }
 
         if (courseItem.assessments && courseItem.assessments.length > 0) {
+          let midtermCount = 0;
+          let continuousCount = 0;
+
           for (const assItem of courseItem.assessments) {
+            let num = assItem.number;
+            if (!num) {
+              if (assItem.type === 'MIDTERM') {
+                midtermCount++;
+                num = midtermCount;
+              } else if (assItem.type === 'CONTINUOUS') {
+                continuousCount++;
+                num = continuousCount;
+              } else {
+                num = 1;
+              }
+            }
+
             let assessment = await tx.assessment.findFirst({
-              where: { courseId: course.id, name: assItem.name },
+              where: { courseId: course.id, type: assItem.type, number: num },
             });
 
             if (assessment) {
@@ -175,17 +238,20 @@ export const bulkSyncSemester = async (req: Request, res: Response) => {
                 data: {
                   grade: assItem.grade !== undefined ? assItem.grade : assessment.grade,
                   weightPercentage: assItem.weightPercentage !== undefined ? assItem.weightPercentage : assessment.weightPercentage,
-                  type: assItem.type || assessment.type,
+                  isIncluded: assItem.isIncluded !== undefined ? assItem.isIncluded : assessment.isIncluded,
+                  targetGrade: assItem.targetGrade !== undefined ? assItem.targetGrade : assessment.targetGrade,
                 },
               });
             } else {
               await tx.assessment.create({
                 data: {
                   courseId: course.id,
-                  name: assItem.name,
                   type: assItem.type,
+                  number: num,
                   grade: assItem.grade ?? 0,
                   weightPercentage: assItem.weightPercentage ?? null,
+                  isIncluded: assItem.isIncluded !== undefined ? assItem.isIncluded : true,
+                  targetGrade: assItem.targetGrade || null,
                 },
               });
             }
@@ -198,7 +264,9 @@ export const bulkSyncSemester = async (req: Request, res: Response) => {
         include: {
           courses: {
             include: {
-              assessments: true,
+              assessments: {
+                orderBy: { orderIndex: 'asc' },
+              },
             },
           },
         },

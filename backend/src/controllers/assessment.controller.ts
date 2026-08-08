@@ -3,19 +3,30 @@ import prisma from '../db';
 
 export const createAssessment = async (req: Request, res: Response) => {
   try {
-    const { courseId, name, type, weightPercentage, grade } = req.body;
+    const userId = (req as any).user?.userId;
+    const { courseId, type, weightPercentage, grade, isIncluded, targetGrade } = req.body;
 
-    if (!courseId || !name || !type) {
-      return res.status(400).json({ error: 'courseId, name, and type are required' });
+    if (!courseId || !type) {
+      return res.status(400).json({ error: 'courseId and type are required' });
+    }
+
+    // Validar propiedad del curso a través del semestre del usuario
+    const course = await prisma.course.findFirst({
+      where: { id: courseId, semester: { userId } },
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: 'Curso no encontrado o no autorizado' });
     }
 
     const assessment = await prisma.assessment.create({
       data: {
         courseId,
-        name,
         type,
         weightPercentage,
         grade: grade || 0,
+        isIncluded: isIncluded !== undefined ? isIncluded : true,
+        targetGrade: targetGrade || null,
       },
     });
 
@@ -27,13 +38,18 @@ export const createAssessment = async (req: Request, res: Response) => {
 
 export const getAssessmentById = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user?.userId;
     const { id } = req.params;
-    const assessment = await prisma.assessment.findUnique({
-      where: { id },
+
+    const assessment = await prisma.assessment.findFirst({
+      where: {
+        id,
+        course: { semester: { userId } },
+      },
     });
 
     if (!assessment) {
-      return res.status(404).json({ error: 'Assessment not found' });
+      return res.status(404).json({ error: 'Evaluación no encontrada o no autorizada' });
     }
 
     res.status(200).json(assessment);
@@ -44,13 +60,23 @@ export const getAssessmentById = async (req: Request, res: Response) => {
 
 export const updateAssessment = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user?.userId;
     const { id } = req.params;
-    const { name, grade, weightPercentage } = req.body;
+    const { grade, weightPercentage, isIncluded, targetGrade } = req.body;
+
+    const existingAssessment = await prisma.assessment.findFirst({
+      where: { id, course: { semester: { userId } } },
+    });
+
+    if (!existingAssessment) {
+      return res.status(404).json({ error: 'Evaluación no encontrada o no autorizada' });
+    }
 
     const data: any = {};
-    if (name !== undefined) data.name = name;
     if (grade !== undefined) data.grade = grade;
     if (weightPercentage !== undefined) data.weightPercentage = weightPercentage;
+    if (isIncluded !== undefined) data.isIncluded = isIncluded;
+    if (targetGrade !== undefined) data.targetGrade = targetGrade;
 
     const assessment = await prisma.assessment.update({
       where: { id },
@@ -65,12 +91,22 @@ export const updateAssessment = async (req: Request, res: Response) => {
 
 export const deleteAssessment = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user?.userId;
     const { id } = req.params;
+
+    const existingAssessment = await prisma.assessment.findFirst({
+      where: { id, course: { semester: { userId } } },
+    });
+
+    if (!existingAssessment) {
+      return res.status(404).json({ error: 'Evaluación no encontrada o no autorizada' });
+    }
+
     await prisma.assessment.delete({
       where: { id },
     });
 
-    res.status(200).json({ message: 'Assessment deleted successfully' });
+    res.status(200).json({ message: 'Evaluación eliminada exitosamente' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
